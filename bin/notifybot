@@ -6,6 +6,7 @@ Args:
     -c --channel        Slack Channel to post in (without the #)
     -t --token          Slack Token used for authentication (Must specify this or webhook, not both)
     -w --webhook        Use this incoming webhook url instead of an API token.
+    -p --pro           Specify this if you are using travis-ci.com (defaults to .org)
 """
 from slackclient import SlackClient
 import json
@@ -23,6 +24,7 @@ else:
     # Convenience variables taken from https://docs.travis-ci.com/user/environment-variables/#Convenience-Variables
     branch = os.environ.get('TRAVIS_BRANCH')
     build_number = os.environ.get('TRAVIS_BUILD_NUMBER')
+    build_id = os.environ.get('TRAVIS_BUILD_ID')
     project_repo = os.environ.get('TRAVIS_REPO_SLUG')
 
 
@@ -31,6 +33,7 @@ def parse_arguments():
     PARSER.add_argument('-c', '--channel', help="Slack Channel to notify")
     PARSER.add_argument('-t', '--token', help="Slack API token", default=False)
     PARSER.add_argument('-w', '--webhook', help="Slack Incoming Webhook URL", default=False)
+    PARSER.add_argument('-p', '--pro', help="Use --pro if you are using travis-ci.com. Defaults to travis-ci.org", action='store_true')
     return PARSER.parse_args()
 
 
@@ -48,6 +51,7 @@ ARGS = parse_arguments()
 slack_channel = '#{}'.format(ARGS.channel)
 token = ARGS.token
 webhook = ARGS.webhook
+pro = ARGS.pro
 sc = SlackClient(token)
 
 
@@ -59,7 +63,14 @@ def run():
         print('You can only specify token OR webhook')
         sys.exit()
     
-    message = 'Branch *{}* of project *{}* deployed by Travis CI, build number *{}*'.format(branch, project_repo, build_number)
+    if pro:
+        gtld = '.com'
+    else:
+        gtld = '.org'
+
+    build_url = 'https://travis-ci{}/{}/builds/{}'.format(gtld, project_repo, build_id)
+
+    message = 'Branch *{}* of project *{}* deployed by Travis CI, build number *{}* - {}'.format(branch, project_repo, build_number, build_url)
     
     if token:
         print('Notifying channel {} using API token').format(slack_channel)
